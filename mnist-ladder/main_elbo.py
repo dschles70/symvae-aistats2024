@@ -7,6 +7,23 @@ from helpers import vlen, ensure_dir
 from hvae import HVAE
 from mnist import MNIST
 
+def ZGR_binary(logits : torch.Tensor, x : torch.Tensor=None) -> torch.Tensor:
+    """Returns a Bernoulli sample for given logits with ZGR = DARN(1/2) gradient
+    Input: logits [*]
+    x: (optional) binary sample to use instead of drawing a new sample. [*]
+    Output: binary samples with ZGR gradient [*], dtype as logits
+    """
+    p = torch.sigmoid(logits)
+    if x is None:
+        x = p.bernoulli()
+    J = (x * (1-p) + (1-x)*p )/2
+    return x + J.detach()*(logits - logits.detach()) # value of x with J on backprop to logits
+
+def kl(p1 : torch.Tensor, p2 : torch.Tensor):
+    p1 = p1 * (1-1e-6) + torch.ones_like(p1)/2 * 1e-6
+    p2 = p2 * (1-1e-6) + torch.ones_like(p2)/2 * 1e-6
+    return p1*(torch.log(p1)-torch.log(p2)) + (1-p1)*(torch.log(1-p1)-torch.log(1-p2))
+
 # entry point, the main
 def main():
     time0 = time.time()
@@ -37,10 +54,13 @@ def main():
 
     print('# Everything prepared, go ...', file=open(logname, 'a'), flush=True)
 
-    loss_p_1 = torch.zeros([], device=device)
-    loss_p_x = torch.zeros([], device=device)
-    loss_q_0 = torch.zeros([], device=device)
-    loss_q_1 = torch.zeros([], device=device)
+    criterion = torch.nn.BCEWithLogitsLoss(reduction='none')
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.stepsize)
+
+    loss_data = torch.zeros([], device=device)
+    loss_kl0 = torch.zeros([], device=device)
+    loss_kl1 = torch.zeros([], device=device)
 
     x_sta = (torch.rand([10,1,28,28], device=device)<0.5).float()
     
@@ -57,20 +77,40 @@ def main():
         x_gt = x_gt0*(1-mask) + (1-x_gt0)*mask
 
         # learn
-        z0, z1 = model.sample_q(x_gt)
-        lp1, lpx = model.optimize_p(z0, z1, x_gt)
-        loss_p_1 = loss_p_1*afactor1 + lp1*afactor
-        loss_p_x = loss_p_x*afactor1 + lpx*afactor
+        optimizer.zero_grad()
+        model.train()
 
-        z0, z1, x = model.sample_p(args.bs)
-        lq0, lq1 = model.optimize_q(z0, z1, x)
-        loss_q_0 = loss_q_0*afactor1 + lq0*afactor
-        loss_q_1 = loss_q_1*afactor1 + lq1*afactor
+        a0, a1 = model.rnet(x_gt)
+
+        scores0, _ = model.fnet0(args.bs)
+        probs0 = scores0.sigmoid()
+        scores0_p = scores0 + a0
+        probs0_p = scores0_p.sigmoid()
+        z0 = ZGR_binary(scores0_p)
+
+        scores1, _ = model.fnet01(z0)
+        probs1 = scores1.sigmoid()
+        scores1_p = scores1 + a1
+        probs1_p = scores1_p.sigmoid()
+        z1 = ZGR_binary(scores1_p)
+
+        x_scores, _ = model.fnet1x(z1)
+
+        d_l = criterion(x_scores, x_gt).sum([1,2,3]).mean()
+        kl0 = kl(probs0_p, probs0).sum(1).mean()
+        kl1 = kl(probs1_p, probs1).sum(1).mean()
+        loss = d_l + kl0 + kl1
+
+        loss.backward()
+        optimizer.step()
+
+        loss_data = loss_data*afactor1 + d_l.detach()/(28*28)*afactor
+        loss_kl0 = loss_kl0*afactor1 + (kl0.detach()/args.nz0)*afactor
+        loss_kl1 = loss_kl1*afactor1 + (kl1.detach()/args.nz1)*afactor
 
         model.update_stats_p(args.bs)
         model.update_stats_q(x_gt)
 
-        # update limiting sample
         x_sta = model.limiting(x_sta).bernoulli()
 
         # once awhile print something out
@@ -78,10 +118,9 @@ def main():
             strtoprint = 'time: ' + str(time.time()-time0) + ' count: ' + str(count)
 
             strtoprint += ' len: ' + str(vlen(model).cpu().numpy())
-            strtoprint += ' ploss1: ' + str(loss_p_1.cpu().numpy())
-            strtoprint += ' plossx: ' + str(loss_p_x.cpu().numpy())
-            strtoprint += ' qloss0: ' + str(loss_q_0.cpu().numpy())
-            strtoprint += ' qloss1: ' + str(loss_q_1.cpu().numpy())
+            strtoprint += ' dloss: ' + str(loss_data.cpu().numpy())
+            strtoprint += ' kl0loss: ' + str(loss_kl0.cpu().numpy())
+            strtoprint += ' kl1loss: ' + str(loss_kl1.cpu().numpy())
 
             strtoprint += ' pmi1: ' + str(model.z1_p_mi.mean().cpu().numpy())
             strtoprint += ' qmi0: ' + str(model.z0_q_mi.mean().cpu().numpy())
@@ -132,6 +171,7 @@ def main():
 
     print('# Finished at ' + time.strftime('%c') + ', %g seconds elapsed' %
           (time.time()-time0), file=open(logname, 'a'), flush=True)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')

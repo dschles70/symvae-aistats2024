@@ -4,7 +4,7 @@ Implementations of experiments from the paper (links/title ... follow).
 
 The repository contains three directories: `mnist-ladder`, `mnist-reverse` and `fmnist-ladder`. Thereby, `...-ladder` means the direct encoder factorization order as in ladder-VAEs, whereas `...-reverse` corresponds to the reverse encoder factorization order as in the Wake-Sleep algorithm, `mnist`/`fmnist` denote the dataset used.
 
-The code is pretty similar in all three cases, hence, we shortly describe the usage right here. For the description of the learning methods we refer to the paper. Implementation details can be red out just from the code.
+The code is pretty similar in all three cases, hence, we shortly describe the usage right here. For the description of the learning methods we refer to the paper. Implementation details can be found in the code.
 
 ### 1) Learning the models
 

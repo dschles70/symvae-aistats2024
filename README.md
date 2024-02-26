@@ -42,3 +42,11 @@ Finally, after performing all steps as described above for ladder VAE on MNIST w
 __ELBO__      | 3.2227      | 36.6440  |
 __Symmetric__ | 1.6543      | 4.1015   |
 | | |  |
+
+For MNIST with the reverse encoder factorization:
+
+|             | Random code | Limiting |
+| ---         | ---         | ---      |
+__ELBO__      | 5.2889      | 14.2256  |
+__Symmetric__ | 1.4746      | 4.9559  |
+| | |  |

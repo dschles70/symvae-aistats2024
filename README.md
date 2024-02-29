@@ -1,6 +1,6 @@
 # symvae-aistats2024
 
-Implementations of experiments from the paper (links/title ... follow).
+Implementations of experiments from the paper **Symmetric Equilibrium Learning of VAEs** (links/authors/pdf/bib ... follow).
 
 The repository contains three directories: `mnist-ladder`, `mnist-reverse` and `fmnist-ladder`. Thereby, `...-ladder` means the direct encoder factorization order as in ladder-VAEs, whereas `...-reverse` corresponds to the reverse encoder factorization order as in the Wake-Sleep algorithm, `mnist`/`fmnist` denote the dataset used.
 
@@ -12,7 +12,7 @@ In order to learn models, go to the desired directory and type e.g. \
 `python main_sym.py --call_prefix 0 --nz0 30 --nz1 100 --stepsize 1e-4 --niterations 200000` \
 for symmetric learning and e.g. \
 `python main_elbo.py --call_prefix 1 --nz0 30 --nz1 100 --stepsize 1e-4 --niterations 200000` \
-for learning by ELBO maximization. In these examples we learn a HVAE with 30 bits for $z_0$ and 100 bits for $z_1$, the learning rate is 1e-4, we want to perform 200k gradient update steps. Note that experiments in the paper were performed with 1M iterations. It takes however quite a long time to work. Usually, useful results are obtained much more quickly. Hence, in order to illustrate the usage 200k iterations are enough. The option `--call_prefix` is a tag (can be an arbitrary string), which identifies the learned model as well as some additional produced results (see below). This tag can be used for example for generation, continuing the learning from a checkpoint etc.
+for learning by ELBO maximization. In these examples we learn a HVAE with 30 bits for $z_0$ and 100 bits for $z_1$, the learning rate is 1e-4, we want to perform 200k gradient update steps (see explanations below). The option `--call_prefix` is a tag (can be an arbitrary string), which identifies the learned model as well as some additional produced results. This tag can be used for example for generation, continuing the learning from a checkpoint etc.
 
 The results of a call as above are stored in three sub-directories (created if necessary): `images`, `logs` and `models`. The names are self-speaking. The course of the learning process (for example, losses, illustrating images etc.) can be watched using the corresponding notebooks `plot_sym.ipynb` and `plot_elbo.ipynb`.
 
@@ -41,7 +41,6 @@ Finally, after performing all steps as described above for ladder VAE on MNIST w
 | ---         | ---         | ---      |
 __ELBO__      | 3.2227      | 36.6440  |
 __Symmetric__ | 1.6543      | 4.1015   |
-| | |  |
 
 For MNIST with the reverse encoder factorization:
 
@@ -49,4 +48,16 @@ For MNIST with the reverse encoder factorization:
 | ---         | ---         | ---      |
 __ELBO__      | 5.2889      | 14.2256  |
 __Symmetric__ | 1.4746      | 4.9559  |
-| | |  |
+
+For Fashion MNIST (ladder VAE):
+
+|             | Random code | Limiting |
+| ---         | ---         | ---      |
+__ELBO__      | 37.8115     | 119.1699 |
+__Symmetric__ | 43.6204     | 42.3663  |
+
+### Additional remarks
+
+* Due to some historical reasons we do not split learning into epochs. We just load the corresponding dataset using standard PyTorch functionality (datasets are downloaded if necessary) and then sample batches randomly, see details in `mnist.py`/`fmnist.py`. So, one _iteration_ in our notations is a single gradient update step for a randomly chosen data mini-batch.
+* This code is designed to work with a single GPU. If you have a multi-GPU environment, prepend all calls with something like `export CUDA_VISIBLE_DEVICES=<num>; ...`, where `<num>` is the number of GPU to be used, in order to avoid unnecessary GPU memory allocation.
+* There are some differences between the example experiments above and the results given in the paper. The latter were performed with 1M iterations for MNIST and 280k iterations for FashionMNIST. It takes however quite a long time to work. Usually, useful results are obtained much more quickly, e.g. 200k iterations are enough in order to illustrate the usage. Besides, for FashionMNIST we used 50 bits for $z_0$ and 200 bits for $z_1$ in the paper, whereas here we used 30 bits for $z_0$ and 100 bits for $z_1$ as in MNIST. As a consequence, the results / numbers above does not exactly resemble those from the paper. Qualitatively however, the behaviours of the methods are pretty similar.

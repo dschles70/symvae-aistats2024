@@ -1,6 +1,9 @@
 # symvae-aistats2024
 
-Implementations of experiments from the paper **Symmetric Equilibrium Learning of VAEs** (links/authors/pdf/bib ... follow).
+Implementations of experiments from the paper:
+
+**Symmetric Equilibrium Learning of VAEs**. Boris Flach, Dmitrij Schlesinger, Alexander Shekhovtsov, Proceedings of The 27th International Conference on Artificial Intelligence and Statistics, PMLR 238:3214-3222, 2024. \
+[https://proceedings.mlr.press/v238/flach24a.html](https://proceedings.mlr.press/v238/flach24a.html) 
 
 The repository contains three directories: `mnist-ladder`, `mnist-reverse` and `fmnist-ladder`. Thereby, `...-ladder` means the direct encoder factorization order as in ladder-VAEs, whereas `...-reverse` corresponds to the reverse encoder factorization order as in the Wake-Sleep algorithm, `mnist`/`fmnist` denote the dataset used.
 
